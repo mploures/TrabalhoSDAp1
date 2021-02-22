@@ -67,25 +67,118 @@ TIPO11  novaMensagem11();
 TIPO33  novaMensagem33();
 TIPO99  novaMensagem99();
 
+//variaveis que informa se exite mensagens do tipo 11, do tipo 33 ou do tipo 99 na lista
+int contP11 = 0;
+int contP33 = 0;
+int contP99 = 0;
+
 // Elemenstos de sincronização
-HANDLE hMutexNseq; //  handle do mutex que protege a variavel nseq
+HANDLE hMutexNSEQ; //  handle do mutex que protege a variavel nseq
 HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lista está cheia ou vazia; O lista cheia começa com 0 e vai até o tamanho maximo e o lista vazia vai do tamanho maximo até 0 
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor
+HANDLE hMutex11, hMutex33, hMutex99; // Mutex que protegem as quantidades de mensagem
 
 // ----------------------------------------------------------------------------------------------------- //
 
+DWORD WINAPI EnviaMensagem(LPVOID);
+DWORD WINAPI RecebeMensagem(LPVOID);
+
 int main()
 {
-    std::cout << "Mudanca para teste!\n";
+	SetConsoleTitle(L"Trabalho de SDA - Principal");
+    std::cout << "Em obras \n";
+	
+	//variaveis e Handles
+
+	HANDLE hTarefas[5]; // handle para todas as tarefas
+	DWORD dwCriacao11, dwCriacao33, dwCriacao99,dwEnvio,dwRecebe;
+	DWORD dwExitCode = 0;
+	DWORD dwRet;
+	int aux, j, status,Tecla = 0;
+	LARGE_INTEGER Preset;
+
+
+	//Mutex
+	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
+	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
+	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
+	hMutex11 = CreateMutex(NULL, FALSE, L"Protege11");
+	hMutex33 = CreateMutex(NULL, FALSE, L"Protege33");
+	hMutex99 = CreateMutex(NULL, FALSE, L"Protege99");
+	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST, L"SemLISTAcheia");
+	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
+
+	// Threads de criação de mensagens 
+	hTarefas[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CriaTipo11, NULL, 0, (CAST_LPDWORD)&dwCriacao11);
+	if (hTarefas[0]) 	cout << "Thread de criacao de mensagens do tipo 11 criada com Id=" << dwCriacao11 << "\n";
+	hTarefas[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CriaTipo33, NULL, 0, (CAST_LPDWORD)&dwCriacao33);
+	if (hTarefas[1]) 	cout << "Thread de criacao de mensagens do tipo 33 criada com Id =" << dwCriacao33 << "\n";
+	hTarefas[2] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CriaTipo99, NULL, 0, (CAST_LPDWORD)&dwCriacao99);
+	if (hTarefas[2]) 	cout << "Thread de criacao de mensagens do tipo 99 criada com Id=" << dwCriacao99 << "\n";
+
+	// Threads de Envio de mensagens 
+	hTarefas[3] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)EnviaMensagem, NULL, 0, (CAST_LPDWORD)&dwEnvio);
+	if (hTarefas[3]) 	cout << "Thread de envio de mensagens criada com Id=" << dwEnvio << "\n";
+
+	// Threads de Recebimento de mensagens 
+	hTarefas[4] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)RecebeMensagem, NULL, 0, (CAST_LPDWORD)&dwRecebe);
+	if (hTarefas[4]) 	cout << "Thread de recebimento de mensagens criada com Id=" << dwRecebe << "\n";
+
+
+
+
+
+
+
+	dwRet = WaitForMultipleObjects(5, hTarefas, TRUE, INFINITE);
+	
+	for (j = 0; j < 5; j++) {
+		status = GetExitCodeThread(&hTarefas[j], &dwExitCode);
+		cout << "thread " << j << " terminou: codigo " << dwExitCode << "\n";
+		CloseHandle(hTarefas[j]);	// apaga referência ao objeto
+	}  
+
+
+
+	CloseHandle(hMutexNSEQ);
+	CloseHandle(hMutexPRODUTOR);
+	CloseHandle(hMutexCOSNSUMIDOR);
+	CloseHandle(hMutex11);
+	CloseHandle(hMutex33);
+	CloseHandle(hMutex99);
+	CloseHandle(hSemLISTAcheia);
+	CloseHandle(hSemLISTAvazia);
+
+	cout << "\nAcione uma tecla para terminar\n";
+	Tecla = _getch(); // // Pare aqui, caso não esteja executando no ambiente MDS
+
+	return EXIT_SUCCESS;
+
 }
 
-// Executar programa: Ctrl + F5 ou Menu Depurar > Iniciar Sem Depuração
-// Depurar programa: F5 ou menu Depurar > Iniciar Depuração
+DWORD WINAPI CriaTipo11(LPVOID index) {
+	_endthreadex((DWORD)index);
+	return(0);
+}
 
-// Dicas para Começar: 
-//   1. Use a janela do Gerenciador de Soluções para adicionar/gerenciar arquivos
-//   2. Use a janela do Team Explorer para conectar-se ao controle do código-fonte
-//   3. Use a janela de Saída para ver mensagens de saída do build e outras mensagens
-//   4. Use a janela Lista de Erros para exibir erros
-//   5. Ir Para o Projeto > Adicionar Novo Item para criar novos arquivos de código, ou Projeto > Adicionar Item Existente para adicionar arquivos de código existentes ao projeto
-//   6. No futuro, para abrir este projeto novamente, vá para Arquivo > Abrir > Projeto e selecione o arquivo. sln
+DWORD WINAPI CriaTipo33(LPVOID index) {
+	_endthreadex((DWORD)index);
+	return(0);
+}
+
+DWORD WINAPI CriaTipo99(LPVOID index) {
+	_endthreadex((DWORD)index);
+	return(0);
+}
+
+DWORD WINAPI EnviaMensagem(LPVOID index) {
+	_endthreadex((DWORD)index);
+	return(0);
+}
+
+DWORD WINAPI RecebeMensagem(LPVOID index) {
+	_endthreadex((DWORD)index);
+	return(0);
+}
+
+
