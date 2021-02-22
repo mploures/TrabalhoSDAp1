@@ -10,7 +10,7 @@
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #define WIN32_LEAN_AND_MEAN
 #define _WIN32_WINNT  0x0400	// Necessário para ativar novas funções da versão 4
-
+#define _WINSOCK_DEPRECATED_NO_WARNINGS //Uso necessário devido a função inet_addr
 
 #include <windows.h>
 #include <process.h>	
@@ -41,6 +41,13 @@ int NSEQ = 1;
 #define TAM_LIST 200
 int indice = 0;
 string  LISTA[TAM_LIST]; //Lista final de envio 
+
+//Variaveis Socket
+WSADATA     wsaData;
+SOCKET      s;
+SOCKADDR_IN ServerAddr;
+int statusSocket,port;
+char *ipaddr;// ipaddr é a comunicação IP e o port é o número da porta - Um deles é o 4045
 
 typedef struct TIPO11 {
 	int nseq = 1;
@@ -91,6 +98,7 @@ HANDLE hTimer;
 //	
 DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
+void ConexaoServidor();
 
 int main()
 {
@@ -103,9 +111,10 @@ int main()
 	DWORD dwCriacao11, dwCriacao33, dwCriacao99,dwEnvio,dwRecebe;
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
-	int aux, j, status,Tecla = 0;
+	int aux, j,status,Tecla = 0;
 	LARGE_INTEGER Preset;
 
+	
 
 	//Mutex e semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
@@ -171,11 +180,8 @@ int main()
 
 
 	// Inicializa Winsock versão 2.2
-	WSADATA     wsaData;
-	SOCKET      s;
-	SOCKADDR_IN ServerAddr;
-	status = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (status != 0) {
+	statusSocket = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (statusSocket != 0) {
 		printf("Falha na inicializacao do Winsock 2! Erro  = %d\n", WSAGetLastError());
 		WSACleanup();
 		exit(0);
@@ -184,30 +190,28 @@ int main()
 	// Cria um novo socket para estabelecer a conexão.
 	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (s == INVALID_SOCKET) {
-		status = WSAGetLastError();
-		if (status == WSAENETDOWN)
+		statusSocket = WSAGetLastError();
+		if (statusSocket == WSAENETDOWN)
 			printf("Rede ou servidor de sockets inacessíveis!\n");
 		else
-			printf("Falha na rede: codigo de erro = %d\n", status);
+			printf("Falha na rede: codigo de erro = %d\n", statusSocket);
 		WSACleanup();
 		exit(0);
 	}
 	// A conexão com o servidor acho q tem q estar em um while ou alg assim
 	// Inicializa a estrutura SOCKADDR_IN que será utilizada para a conexão ao servidor.
-	/*
+	
 	ServerAddr.sin_family = AF_INET;
 	ServerAddr.sin_port = htons(port);//port é a porta de comunicação
 	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);//IPaddr é o endereço IP que seria passado por linha de comando
 
 	// Estabelece a conexão com o servidor
-	status = connect(s, (SOCKADDR*)&ServerAddr, sizeof(ServerAddr));
-	if (status == SOCKET_ERROR) {
+	statusSocket = connect(s, (SOCKADDR*)&ServerAddr, sizeof(ServerAddr));
+	if (statusSocket == SOCKET_ERROR) {
 		printf("Falha na conexao ao servidor ! Erro  = %d\n", WSAGetLastError());
 		WSACleanup();
 		exit(0);
-	}*/
-
-
+	}
 
 
 
@@ -524,8 +528,27 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 }
 
 DWORD WINAPI RecebeMensagem(LPVOID index) {
+	do {
+		//statusSocket = recv(s, buf, TAMBUF, 0);
+		if (statusSocket > 0) {
+			//strncpy_s(msg, TAMBUF + 1, buf, statusSocket);
+			//printf("Hora corrente no servidor %s = %s\n", msg);
+			//memset(msg, TAMBUF + 1, 0);
+		}
+		else if (statusSocket == 0)
+			printf("Fim da mensagem recebida do servidor.\n");
+		else
+			printf("Falha na recepcao de dados do servidor ! Erro  = %d\n", WSAGetLastError());
+	} while (statusSocket > 0); //Ainda não deve sair, precisamos tentar conectar com o servidor novamente 
+	//Precisamos ver como vai ser pra identificar uqal mensagem ta chegando -> apos o número sequencial (tamanho de um inteiro) temos um S
+	//Em seguida o tipo da mensagem, ai podemos direcionar de acordo com o tratamento . 
+
 	_endthreadex((DWORD)index);
 	return(0);
+}
+
+void ConexaoServidor() {
+
 }
 
 
