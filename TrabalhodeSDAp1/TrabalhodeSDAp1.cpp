@@ -2,7 +2,7 @@
 // 
 //	Autores: Maria Luiza de Andrade e Matheus Paiva 
 //
-//	Cliente Sokcet
+//	Cliente Socket
 //
 //
 
@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #include <conio.h>
 #include <iostream>
+#include <winsock2.h>
+#pragma comment (lib, "ws2_32.lib") //Inclui a biblioteca winsocket 
+
 using namespace std;
 #include<string>
 using std::string;
@@ -80,6 +83,7 @@ HANDLE hMutex11, hMutex33, hMutex99; // Mutex que protegem as quantidades de men
 
 // ----------------------------------------------------------------------------------------------------- //
 
+//	
 DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
 
@@ -124,7 +128,42 @@ int main()
 	hTarefas[4] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)RecebeMensagem, NULL, 0, (CAST_LPDWORD)&dwRecebe);
 	if (hTarefas[4]) 	cout << "Thread de recebimento de mensagens criada com Id=" << dwRecebe << "\n";
 
+	// Inicializa Winsock versão 2.2
+	WSADATA     wsaData;
+	SOCKET      s;
+	SOCKADDR_IN ServerAddr;
+	status = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (status != 0) {
+		printf("Falha na inicializacao do Winsock 2! Erro  = %d\n", WSAGetLastError());
+		WSACleanup();
+		exit(0);
+	}
 
+	// Cria um novo socket para estabelecer a conexão.
+	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (s == INVALID_SOCKET) {
+		status = WSAGetLastError();
+		if (status == WSAENETDOWN)
+			printf("Rede ou servidor de sockets inacessíveis!\n");
+		else
+			printf("Falha na rede: codigo de erro = %d\n", status);
+		WSACleanup();
+		exit(0);
+	}
+	// A conexão com o servidor acho q tem q estar em um while ou alg assim
+	// Inicializa a estrutura SOCKADDR_IN que será utilizada para a conexão ao servidor.
+	/*
+	ServerAddr.sin_family = AF_INET;
+	ServerAddr.sin_port = htons(port);//port é a porta de comunicação
+	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);//IPaddr é o endereço IP que seria passado por linha de comando
+
+	// Estabelece a conexão com o servidor
+	status = connect(s, (SOCKADDR*)&ServerAddr, sizeof(ServerAddr));
+	if (status == SOCKET_ERROR) {
+		printf("Falha na conexao ao servidor ! Erro  = %d\n", WSAGetLastError());
+		WSACleanup();
+		exit(0);
+	}*/
 
 
 
