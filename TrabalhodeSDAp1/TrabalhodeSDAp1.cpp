@@ -34,7 +34,7 @@ int NSEQ = 1;
 //lista na memomiara ram
 #define TAM_LIST 200
 int indice = 0;
-string  LISTA[TAM_LIST];
+string  LISTA[TAM_LIST]; //Lista final de envio 
 
 typedef struct TIPO11 {
 	int nseq = 1;
