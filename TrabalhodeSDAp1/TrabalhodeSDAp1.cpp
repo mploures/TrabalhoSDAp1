@@ -31,6 +31,9 @@ using std::string;
 typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
+#define	ESC 	0x1B	//Tecla para encerrar o programa
+#define p       0x70    // DEfine tecla do evento p
+
 //--------------- Declarações relacionadas a Criação das mensagens do tipo 11, 33 e 99 --------------- //
 
 int NSEQ = 1;
@@ -80,7 +83,9 @@ HANDLE hMutexNSEQ; //  handle do mutex que protege a variavel nseq
 HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lista está cheia ou vazia; O lista cheia começa com 0 e vai até o tamanho maximo e o lista vazia vai do tamanho maximo até 0 
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor
 HANDLE hMutex11, hMutex33, hMutex99; // Mutex que protegem as quantidades de mensagem
-
+HANDLE hMutexINDICE; 
+HANDLE hEventoESC,hEventoACK, hEventoP;
+HANDLE hTimer;
 // ----------------------------------------------------------------------------------------------------- //
 
 //	
@@ -102,7 +107,7 @@ int main()
 	LARGE_INTEGER Preset;
 
 
-	//Mutex
+	//Mutex e semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
 	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
 	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
@@ -111,6 +116,14 @@ int main()
 	hMutex99 = CreateMutex(NULL, FALSE, L"Protege99");
 	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST, L"SemLISTAcheia");
 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
+
+	// Eventos
+	hEventoESC = CreateEvent(NULL, TRUE, FALSE, L"EventoESC"); // reset manual
+	hEventoACK= CreateEvent(NULL, FALSE, FALSE, L"EventoACK"); // reset automatico
+	hEventoP = CreateEvent(NULL, FALSE, FALSE, L"EventoP"); // reset automatico
+
+    //Timer
+	hTimer = CreateWaitableTimer(NULL, FALSE, L"Timer");
 
 	// Threads de criação de mensagens 
 	hTarefas[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CriaTipo11, NULL, 0, (CAST_LPDWORD)&dwCriacao11);
@@ -127,6 +140,35 @@ int main()
 	// Threads de Recebimento de mensagens 
 	hTarefas[4] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)RecebeMensagem, NULL, 0, (CAST_LPDWORD)&dwRecebe);
 	if (hTarefas[4]) 	cout << "Thread de recebimento de mensagens criada com Id=" << dwRecebe << "\n";
+
+
+	// ajuste do timer
+	Preset.QuadPart = -(20000 * 500);
+	status = SetWaitableTimer(hTimer, &Preset, 500, NULL, NULL, FALSE);
+
+	do {
+		cout << "\n Tecle <p> para simular o evento de solitacao de mensagem \n <ESC> para sair \n";
+		Tecla = _getch();
+
+		if (Tecla == p) {
+			status = SetEvent(hEventoP);
+			cout << "\n Evento P ocorreu \n";
+			Tecla = 0;
+		}
+		else if (Tecla == ESC) {
+			status = SetEvent(hEventoESC);
+			cout << "\n Evento ESC ocorreu \n";
+		}
+		else {
+			cout << "\n Evento nao cadastrado \n";
+			Tecla = 0;
+		}
+
+	
+	} while (Tecla != ESC);
+
+
+
 
 	// Inicializa Winsock versão 2.2
 	WSADATA     wsaData;
@@ -176,7 +218,7 @@ int main()
 		cout << "thread " << j << " terminou: codigo " << dwExitCode << "\n";
 		CloseHandle(hTarefas[j]);	// apaga referência ao objeto
 	}  
-
+	ResetEvent(hEventoESC);
 
 
 	CloseHandle(hMutexNSEQ);
@@ -188,6 +230,11 @@ int main()
 	CloseHandle(hSemLISTAcheia);
 	CloseHandle(hSemLISTAvazia);
 
+
+	CloseHandle(hTimer);
+	CloseHandle(hEventoACK);
+	CloseHandle(hEventoESC);
+
 	cout << "\nAcione uma tecla para terminar\n";
 	Tecla = _getch(); // // Pare aqui, caso não esteja executando no ambiente MDS
 
@@ -196,19 +243,280 @@ int main()
 }
 
 DWORD WINAPI CriaTipo11(LPVOID index) {
+	// Variaveis de controle de thread e elementos de sincronização
+	int status;
+	DWORD ret;
+	DWORD dwRet;
+	//Variaveis de construção da mensagem
+	string aux = "erro";
+	char Print[5];
+	TIPO11 m1;
+	int tipo;
+
+	HANDLE hEventos[2];
+
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hTimer;
+
+	//Rotina Principal
+	do {
+		// Espera a ocorrencia de um evento
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, INFINITE);
+
+		// retona qual a posição do evento que ocorreu 0 para ESC e 1 para o Temporizador
+		tipo = ret - WAIT_OBJECT_0;
+
+		if (tipo == 1) {
+
+			// -------------recebe a mensagem do CLP-------------//
+			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+			m1 = novaMensagem11();
+			status = ReleaseMutex(hMutexNSEQ);
+
+			// -------------Produz Mensagem-------------//
+
+			status = sprintf(Print, "%05d", m1.nseq);
+			aux = Print;
+			aux += "$";
+			aux += to_string(m1.tipo) + "$";
+			aux += to_string(m1.taxa) + "$";
+			aux += to_string(m1.potencia) + "$";
+			aux += to_string(m1.tempTrans) + "$";
+			aux += to_string(m1.tempRoda);
+
+
+
+
+			//-------------Tenta guardar o dado produzido-------------//
+
+			dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+
+			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+
+
+			indice = (indice + 1) % TAM_LIST;
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+
+			dwRet = WaitForSingleObject(hMutex11, INFINITE);
+			contP11++; //atualiza o numero de produtos tipo 11 na lista			
+			status = ReleaseMutex(hMutex11);
+
+			status = ReleaseMutex(hMutexINDICE);
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+		}
+		
+
+	} while (tipo != 0);
+
+
+	//Encerramento da thread
+
 	_endthreadex((DWORD)index);
 	return(0);
 }
 
 DWORD WINAPI CriaTipo33(LPVOID index) {
+	// Variaveis de controle de thread e elementos de sincronização
+	int status;
+	DWORD ret;
+	DWORD dwRet;
+	//Variaveis de construção da mensagem
+	string aux = "erro";
+	char Print[5];
+	TIPO33 m3;
+	int tipo;
+
+	HANDLE hEventos[2];
+
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoP;
+
+	//Rotina Principal
+	do {
+		// Espera a ocorrencia de um evento
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, INFINITE);
+
+		// retona qual a posição do evento que ocorreu 0 para ESC e 1 para o evento de Solicitação
+		tipo = ret - WAIT_OBJECT_0;
+
+		if (tipo == 1) {
+
+			// -------------recebe a mensagem do CLP-------------//
+			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+			m3 = novaMensagem33();
+			status = ReleaseMutex(hMutexNSEQ);
+
+			// -------------Produz Mensagem-------------//
+
+			status = sprintf(Print, "%05d", m3.nseq);
+			aux = Print;
+			aux += "$";
+			aux += to_string(m3.tipo);
+
+
+
+
+			//-------------Tenta guardar o dado produzido-------------//
+
+			dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+
+			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+
+
+			indice = (indice + 1) % TAM_LIST;
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+
+			dwRet = WaitForSingleObject(hMutex33, INFINITE);
+			contP33++; //atualiza o numero de produtos tipo 33 na lista			
+			status = ReleaseMutex(hMutex33);
+
+			status = ReleaseMutex(hMutexINDICE);
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+		}
+
+
+	} while (tipo != 0);
+
+
+	//Encerramento da thread
+
 	_endthreadex((DWORD)index);
 	return(0);
 }
 
 DWORD WINAPI CriaTipo99(LPVOID index) {
+	// Variaveis de controle de thread e elementos de sincronização
+	int status;
+	DWORD ret;
+	DWORD dwRet;
+	//Variaveis de construção da mensagem
+	string aux = "erro";
+	char Print[5];
+	TIPO99 m9;
+	int tipo;
+
+	HANDLE hEventos[2];
+
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoACK;
+
+	//Rotina Principal
+	do {
+		// Espera a ocorrencia de um evento
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, INFINITE);
+
+		// retona qual a posição do evento que ocorreu 0 para ESC e 1 para o evento de Recebimento de mensgam de dados
+		tipo = ret - WAIT_OBJECT_0;
+
+		if (tipo == 1) {
+
+			// -------------recebe a mensagem do CLP-------------//
+			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+			m9 = novaMensagem99();
+			status = ReleaseMutex(hMutexNSEQ);
+
+			// -------------Produz Mensagem-------------//
+
+			status = sprintf(Print, "%05d", m9.nseq);
+			aux = Print;
+			aux += "$";
+			aux += to_string(m9.tipo);
+
+
+
+
+			//-------------Tenta guardar o dado produzido-------------//
+
+			dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+
+			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+
+
+			indice = (indice + 1) % TAM_LIST;
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+
+			dwRet = WaitForSingleObject(hMutex99, INFINITE);
+			contP99++; //atualiza o numero de produtos tipo 99 na lista			
+			status = ReleaseMutex(hMutex99);
+
+			status = ReleaseMutex(hMutexINDICE);
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+		}
+
+
+	} while (tipo != 0);
+
+
+	//Encerramento da thread
+
 	_endthreadex((DWORD)index);
 	return(0);
 }
+
+
+TIPO11  novaMensagem11() {
+	TIPO11 m1;
+	int aux = rand() % 9999;
+
+	// Atribui o valor de NSEQ e o atualiza
+	m1.nseq = NSEQ;
+	NSEQ++;
+	if (NSEQ == 99999) {
+		NSEQ = 1;
+	}
+	// A variavel NSEQ é protegida antes de chamar a função
+
+	m1.potencia= (float)aux / 10;
+	aux = rand() % 9999;
+	m1.tempRoda= (float)aux / 10;
+	aux = rand() % 9999;
+	m1.tempTrans= (float)aux / 10;
+	aux = rand() % 999999;
+	m1.taxa = aux;
+
+	return m1;
+
+}
+
+TIPO33  novaMensagem33() {
+	TIPO33 m3;
+
+	// Atribui o valor de NSEQ e o atualiza
+	m3.nseq = NSEQ;
+	NSEQ++;
+	if (NSEQ == 99999) {
+		NSEQ = 1;
+	}
+	// A variavel NSEQ é protegida antes de chamar a função
+
+	return m3;
+
+}
+
+TIPO99  novaMensagem99() {
+	TIPO99 m9;
+
+	// Atribui o valor de NSEQ e o atualiza
+	m9.nseq = NSEQ;
+	NSEQ++;
+	if (NSEQ == 99999) {
+		NSEQ = 1;
+	}
+	// A variavel NSEQ é protegida antes de chamar a função
+
+	return m9;
+}
+
+
 
 DWORD WINAPI EnviaMensagem(LPVOID index) {
 	_endthreadex((DWORD)index);
