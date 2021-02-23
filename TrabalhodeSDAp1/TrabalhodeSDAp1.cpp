@@ -155,30 +155,6 @@ int main()
 	Preset.QuadPart = -(20000 * 500);
 	status = SetWaitableTimer(hTimer, &Preset, 500, NULL, NULL, FALSE);
 
-	do {
-		cout << "\n Tecle <p> para simular o evento de solitacao de mensagem \n <ESC> para sair \n";
-		Tecla = _getch();
-
-		if (Tecla == p) {
-			status = SetEvent(hEventoP);
-			cout << "\n Evento P ocorreu \n";
-			Tecla = 0;
-		}
-		else if (Tecla == ESC) {
-			status = SetEvent(hEventoESC);
-			cout << "\n Evento ESC ocorreu \n";
-		}
-		else {
-			cout << "\n Evento nao cadastrado \n";
-			Tecla = 0;
-		}
-
-	
-	} while (Tecla != ESC);
-
-
-
-
 	// Inicializa Winsock versão 2.2
 	statusSocket = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (statusSocket != 0) {
@@ -200,7 +176,7 @@ int main()
 	}
 	// A conexão com o servidor acho q tem q estar em um while ou alg assim
 	// Inicializa a estrutura SOCKADDR_IN que será utilizada para a conexão ao servidor.
-	
+
 	ServerAddr.sin_family = AF_INET;
 	ServerAddr.sin_port = htons(port);//port é a porta de comunicação
 	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);//IPaddr é o endereço IP que seria passado por linha de comando
@@ -213,6 +189,26 @@ int main()
 		exit(0);
 	}
 
+	do {
+		cout << "\n Tecle <p> para simular o evento de solitacao de mensagem \n <ESC> para sair \n";
+		Tecla = _getch();
+
+		if (Tecla == p) {
+			status = SetEvent(hEventoP);
+			cout << "\n Evento P ocorreu \n";
+			Tecla = 0;
+		}
+		else if (Tecla == ESC) {
+			status = SetEvent(hEventoESC);
+			cout << "\n Evento ESC ocorreu \n";
+		}
+		else {
+			cout << "\n Evento nao cadastrado \n";
+			Tecla = 0;
+		}
+
+	
+	} while (Tecla != ESC);
 
 
 	dwRet = WaitForMultipleObjects(5, hTarefas, TRUE, INFINITE);
