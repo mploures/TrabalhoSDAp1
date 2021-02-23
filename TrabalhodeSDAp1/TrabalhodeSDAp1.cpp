@@ -100,7 +100,7 @@ DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
 int CheckSocketError(int status, HANDLE hOut);
 void ConexaoServidor();
-void EnviaSocket(char* m);
+void EnviaSocket(char* m,int tipo);
 
 int main(int argc, int argv[])
 {
@@ -526,48 +526,36 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 	DWORD dwRet;
 
 	//Variaveis de consumir da mensagem
-	string m;
+
 	string msg;
 	int j;
 	int indexm;
-	int AJUDA;
+
 
 	//Variaveis que gerem a parte de evento da thread
 	int tipo;    // tipo do evento
-	HANDLE hEventos;
+
 
 
 	// Variaveis Para o envio de Mensagem atraves do Socket
 	char buf[100];
 
-	hEventos= hEventoESC;
+	 
 
 
 	do {
 		// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
-		ret = WaitForSingleObject(hEventos,100);
+		ret = WaitForSingleObject(hEventoESC,100);
 
-		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para E
-
-		dwRet = WaitForSingleObject(hMutex11, INFINITE);
-		AJUDA = contP11;
-		ReleaseMutex(hMutex11);
-
-		dwRet = WaitForSingleObject(hMutex33, INFINITE);
-		AJUDA = AJUDA + contP33;
-		ReleaseMutex(hMutex33);
-
-		dwRet = WaitForSingleObject(hMutex99, INFINITE);
-		AJUDA = AJUDA + contP99;
-		ReleaseMutex(hMutex99);
+		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC 
 
 
 
-		if (AJUDA >=1) {
+
+		if (tipo !=0) {
 
 			//-------------Tenta Acessar o dado na lista-------------//
 
-			dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
 			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 
 			WaitForSingleObject(hMutexINDICE, INFINITE);
@@ -583,6 +571,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 			}
 			msg = LISTA[indexm];
 			LISTA[indexm]="";
+
 			ReleaseMutex(hMutexINDICE);
 			
 			if (msg != "") {
@@ -595,7 +584,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 						buf[j] = msg[j];
 					}
 
-					EnviaSocket(buf);
+					EnviaSocket(buf,11);
 
 
 
@@ -613,7 +602,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 						buf[j] = msg[j];
 					}
 
-					EnviaSocket(buf);
+					EnviaSocket(buf,33);
 
 
 
@@ -631,7 +620,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 						buf[j] = msg[j];
 					}
 
-					EnviaSocket(buf);
+					EnviaSocket(buf,99);
 
 					dwRet = WaitForSingleObject(hMutex99, INFINITE);
 					contP99--; // Atualiza o numero de produtos tipo 99
