@@ -99,8 +99,9 @@ HANDLE hTimer;
 DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
 void ConexaoServidor();
+void EnviaSocket(char* m);
 
-int main()
+int main(int argc, int argv[])
 {
 	SetConsoleTitle(L"Trabalho de SDA - Principal");
     std::cout << "Em obras \n";
@@ -523,8 +524,148 @@ TIPO99  novaMensagem99() {
 
 
 DWORD WINAPI EnviaMensagem(LPVOID index) {
+	BOOL status;
+	DWORD ret;
+	DWORD dwRet;
+
+	//Variaveis de consumir da mensagem
+	string m;
+	string msg;
+	int j;
+	int indexm;
+	int AJUDA;
+
+	//Variaveis que gerem a parte de evento da thread
+	int tipo;    // tipo do evento
+	HANDLE hEventos;
+
+
+	// Variaveis Para o envio de Mensagem atraves do Socket
+	char buf[100];
+
+	hEventos= hEventoESC;
+
+
+	do {
+		// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
+		ret = WaitForSingleObject(hEventos,100);
+
+		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para E
+
+		dwRet = WaitForSingleObject(hMutex11, INFINITE);
+		AJUDA = contP11;
+		ReleaseMutex(hMutex11);
+
+		dwRet = WaitForSingleObject(hMutex33, INFINITE);
+		AJUDA = AJUDA + contP33;
+		ReleaseMutex(hMutex33);
+
+		dwRet = WaitForSingleObject(hMutex99, INFINITE);
+		AJUDA = AJUDA + contP99;
+		ReleaseMutex(hMutex99);
+
+
+
+		if (AJUDA >=1) {
+
+			//-------------Tenta Acessar o dado na lista-------------//
+
+			dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
+
+			WaitForSingleObject(hMutexINDICE, INFINITE);
+
+			// Encontra a Primeira Mensagem  na lista
+			for (j = 0; j < indice; j++) {
+				msg = LISTA[j];
+				if (msg != "") {
+					indexm = j;
+					break;
+
+				}
+			}
+			msg = LISTA[indexm];
+			LISTA[indexm]="";
+			ReleaseMutex(hMutexINDICE);
+			
+			if (msg != "") {
+
+				if (msg.substr(6, 2) == "11") {
+
+					cout << msg << "\n";
+					// Grava a mensagem em um vetor de caracter
+					for (j = 0; j < msg.size(); j++) {
+						buf[j] = msg[j];
+					}
+
+					EnviaSocket(buf);
+
+
+
+					dwRet = WaitForSingleObject(hMutex11, INFINITE);
+					contP11--; // Atualiza o numero de produtos tipo 11
+					status = ReleaseMutex(hMutex11);
+					status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+					status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+				}
+				else if (msg.substr(6, 2) == "33") {
+
+					cout << msg << "\n";
+					// Grava a mensagem em um vetor de caracter
+					for (j = 0; j < msg.size(); j++) {
+						buf[j] = msg[j];
+					}
+
+					EnviaSocket(buf);
+
+
+
+					dwRet = WaitForSingleObject(hMutex33, INFINITE);
+					contP33--; // Atualiza o numero de produtos tipo 33
+					status = ReleaseMutex(hMutex33);
+					status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+					status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+				}
+				else if (msg.substr(6, 2) == "99") {
+
+					cout << msg << "\n";
+					// Grava a mensagem em um vetor de caracter
+					for (j = 0; j < msg.size(); j++) {
+						buf[j] = msg[j];
+					}
+
+					EnviaSocket(buf);
+
+					dwRet = WaitForSingleObject(hMutex99, INFINITE);
+					contP99--; // Atualiza o numero de produtos tipo 99
+					status = ReleaseMutex(hMutex99);
+					status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+					status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+				}
+				else{
+					status = ReleaseMutex(hMutexCOSNSUMIDOR);
+					status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+
+				}
+			}
+			else{
+				status = ReleaseMutex(hMutexCOSNSUMIDOR);
+				status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+			}
+
+
+
+
+
+		}
+
+
+	} while (tipo != 0);
+
+	
+
 	_endthreadex((DWORD)index);
-	return(0);
+	return (0);
 }
 
 DWORD WINAPI RecebeMensagem(LPVOID index) {
