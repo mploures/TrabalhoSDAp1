@@ -157,39 +157,6 @@ int main(int argc, int argv[])
 	Preset.QuadPart = -(20000 * 500);
 	status = SetWaitableTimer(hTimer, &Preset, 500, NULL, NULL, FALSE);
 
-	// Inicializa Winsock versão 2.2
-	statusSocket = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (statusSocket != 0) {
-		printf("Falha na inicializacao do Winsock 2! Erro  = %d\n", WSAGetLastError());
-		WSACleanup();
-		exit(0);
-	}
-
-	// Cria um novo socket para estabelecer a conexão.
-	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (s == INVALID_SOCKET) {
-		statusSocket = WSAGetLastError();
-		if (statusSocket == WSAENETDOWN)
-			printf("Rede ou servidor de sockets inacessíveis!\n");
-		else
-			printf("Falha na rede: codigo de erro = %d\n", statusSocket);
-		WSACleanup();
-		exit(0);
-	}
-	// A conexão com o servidor acho q tem q estar em um while ou alg assim
-	// Inicializa a estrutura SOCKADDR_IN que será utilizada para a conexão ao servidor.
-
-	ServerAddr.sin_family = AF_INET;
-	ServerAddr.sin_port = htons(port);//port é a porta de comunicação
-	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);//IPaddr é o endereço IP que seria passado por linha de comando
-
-	// Estabelece a conexão com o servidor
-	statusSocket = connect(s, (SOCKADDR*)&ServerAddr, sizeof(ServerAddr));
-	if (statusSocket == SOCKET_ERROR) {
-		printf("Falha na conexao ao servidor ! Erro  = %d\n", WSAGetLastError());
-		WSACleanup();
-		exit(0);
-	}
 
 	do {
 		cout << "\n Tecle <p> para simular o evento de solitacao de mensagem \n <ESC> para sair \n";
@@ -518,8 +485,6 @@ TIPO99  novaMensagem99() {
 	return m9;
 }
 
-
-
 DWORD WINAPI EnviaMensagem(LPVOID index) {
 	BOOL status;
 	DWORD ret;
@@ -529,7 +494,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 
 	string msg;
 	int j;
-	int indexm;
+	int indexm=0;
 
 
 	//Variaveis que gerem a parte de evento da thread
@@ -655,23 +620,8 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 }
 
 DWORD WINAPI RecebeMensagem(LPVOID index) {
-	do {
-		//statusSocket = recv(s, buf, TAMBUF, 0);
-		if (statusSocket > 0) {
-			//strncpy_s(msg, TAMBUF + 1, buf, statusSocket);
-			//printf("Hora corrente no servidor %s = %s\n", msg);
-			//memset(msg, TAMBUF + 1, 0);
-		}
-		else if (statusSocket == 0)
-			printf("Fim da mensagem recebida do servidor.\n");
-		else
-			printf("Falha na recepcao de dados do servidor ! Erro  = %d\n", WSAGetLastError());
-	} while (statusSocket > 0); //Ainda não deve sair, precisamos tentar conectar com o servidor novamente 
-	//Precisamos ver como vai ser pra identificar uqal mensagem ta chegando -> apos o número sequencial (tamanho de um inteiro) temos um S
-	//Em seguida o tipo da mensagem, ai podemos direcionar de acordo com o tratamento . 
-
 	_endthreadex((DWORD)index);
-	return(0);
+	return (0);
 }
 
 int CheckSocketError(int status, HANDLE hOut) {//modificar e testar se vale a pena utilizar essa função 
@@ -700,5 +650,8 @@ int CheckSocketError(int status, HANDLE hOut) {//modificar e testar se vale a pe
 		return(-1); // acarreta reinício da espera de mensagens no programa principal
 	}
 	else return(0);*/
+	return 0;
 }
+
+void EnviaSocket(char* m, int tipo) {}
 
