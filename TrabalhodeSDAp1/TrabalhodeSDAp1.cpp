@@ -107,7 +107,7 @@ void EnviaSocket(char *m,int tipo);
 int main(int argc, char **argv)
 {
 	string ip = "000000";
-	ipaddr =ip;
+	//ipaddr =ip;
 	SetConsoleTitle(L"Trabalho de SDA - Principal");
     std::cout << "Em obras \n";
 	
