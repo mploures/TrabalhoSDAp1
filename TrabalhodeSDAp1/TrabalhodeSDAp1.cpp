@@ -81,7 +81,7 @@ TIPO33  novaMensagem33();
 TIPO99  novaMensagem99();
 
 //variaveis que informa se exite mensagens do tipo 11, do tipo 33 ou do tipo 99 na lista
-int contP11 = 0;
+int contP11 = 0; //OLA
 int contP33 = 0;
 int contP99 = 0;
 
