@@ -6,7 +6,7 @@
 //
 //
 
-
+#define _CRT_SECURE_NO_WARNINGS 
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #define WIN32_LEAN_AND_MEAN
 #define _WIN32_WINNT  0x0400	// Necessário para ativar novas funções da versão 4
@@ -46,7 +46,7 @@ string  LISTA[TAM_LIST]; //Lista final de envio
 WSADATA     wsaData;
 SOCKET      s;
 SOCKADDR_IN ServerAddr;
-int statusSocket,port;
+int statusSocket,port = 3445;
 char *ipaddr;// ipaddr é a comunicação IP e o port é o número da porta - Um deles é o 4045
 
 typedef struct TIPO11 {
@@ -81,11 +81,11 @@ TIPO33  novaMensagem33();
 TIPO99  novaMensagem99();
 
 //variaveis que informa se exite mensagens do tipo 11, do tipo 33 ou do tipo 99 na lista
-int contP11 = 0; //OLA
+int contP11 = 0; 
 int contP33 = 0;
 int contP99 = 0;
 
-// Elemenstos de sincronização
+// Elementos de sincronização
 HANDLE hMutexNSEQ; //  handle do mutex que protege a variavel nseq
 HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lista está cheia ou vazia; O lista cheia começa com 0 e vai até o tamanho maximo e o lista vazia vai do tamanho maximo até 0 
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor
@@ -98,6 +98,7 @@ HANDLE hTimer;
 //	
 DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
+int CheckSocketError(int status, HANDLE hOut);
 void ConexaoServidor();
 
 int main()
@@ -543,8 +544,31 @@ DWORD WINAPI RecebeMensagem(LPVOID index) {
 	return(0);
 }
 
-void ConexaoServidor() {
+int CheckSocketError(int status, HANDLE hOut) {//modificar e testar se vale a pena utilizar essa função 
+	/*
+	int erro;
 
+	if (status == SOCKET_ERROR) {
+		SetConsoleTextAttribute(hOut, HLRED);
+		erro = WSAGetLastError();
+		if (erro == WSAEWOULDBLOCK) {
+			printf("Timeout na operacao de RECV! errno = %d - reiniciando...\n\n", erro);
+			return(-1); // acarreta reinício da espera de mensagens no programa principal
+		}
+		else if (erro == WSAECONNABORTED) {
+			printf("Conexao abortada pelo cliente TCP - reiniciando...\n\n");
+			return(-1); // acarreta reinício da espera de mensagens no programa principal
+		}
+		else {
+			printf("Erro de conexao! valor = %d\n\n", erro);
+			return (-2); // acarreta encerramento do programa principal
+		}
+	}
+	else if (status == 0) {
+		//Este caso indica que a conexão foi encerrada suavemente ("gracefully")
+		printf("Conexao com cliente TCP encerrada prematuramente! status = %d\n\n", status);
+		return(-1); // acarreta reinício da espera de mensagens no programa principal
+	}
+	else return(0);*/
 }
-
 
