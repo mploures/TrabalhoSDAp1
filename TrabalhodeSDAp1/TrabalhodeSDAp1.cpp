@@ -7,10 +7,11 @@
 //
 
 #define _CRT_SECURE_NO_WARNINGS 
+#define _WINSOCK_DEPRECATED_NO_WARNINGS //Uso necessário devido a função inet_addr
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #define WIN32_LEAN_AND_MEAN
 #define _WIN32_WINNT  0x0400	// Necessário para ativar novas funções da versão 4
-#define _WINSOCK_DEPRECATED_NO_WARNINGS //Uso necessário devido a função inet_addr
+
 
 #include <windows.h>
 #include <process.h>	
@@ -42,12 +43,7 @@ int NSEQ = 1;
 int indice = 0;
 string  LISTA[TAM_LIST]; //Lista final de envio 
 
-//Variaveis Socket
-WSADATA     wsaData;
-SOCKET      s;
-SOCKADDR_IN ServerAddr;
-int statusSocket,port = 3445;
-char *ipaddr;// ipaddr é a comunicação IP e o port é o número da porta - Um deles é o 4045
+
 
 typedef struct TIPO11 {
 	int nseq = 1;
@@ -69,6 +65,12 @@ typedef struct TIPO99 {
 	int tipo = 99;
 }TIPO99; // definição do tipo 99
 
+//Variaveis Socket
+WSADATA     wsaData;
+SOCKET      s;
+SOCKADDR_IN ServerAddr;
+int statusSocket, port;
+char* ipaddr;// ipaddr é a comunicação IP e o port é o número da porta - Um deles é o 4045
 
 // Threads de Gerenciamento 
 DWORD WINAPI CriaTipo11(LPVOID);	// declaração da thread  que  gerencia a Criancão de mensagens do tipo 11
@@ -99,11 +101,12 @@ HANDLE hTimer;
 DWORD WINAPI EnviaMensagem(LPVOID);
 DWORD WINAPI RecebeMensagem(LPVOID);
 int CheckSocketError(int status, HANDLE hOut);
-void ConexaoServidor();
-void EnviaSocket(char* m,int tipo);
+//void ConexaoServidor();
+void EnviaSocket(char *m,int tipo);
 
 int main(int argc, int argv[])
 {
+
 	SetConsoleTitle(L"Trabalho de SDA - Principal");
     std::cout << "Em obras \n";
 	
@@ -166,6 +169,10 @@ int main(int argc, int argv[])
 	}
 
 	// Cria um novo socket para estabelecer a conexão.
+	ServerAddr.sin_family = AF_INET;
+	ServerAddr.sin_port = htons(port);
+	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);
+
 	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (s == INVALID_SOCKET) {
 		statusSocket = WSAGetLastError();
@@ -179,9 +186,6 @@ int main(int argc, int argv[])
 	// A conexão com o servidor acho q tem q estar em um while ou alg assim
 	// Inicializa a estrutura SOCKADDR_IN que será utilizada para a conexão ao servidor.
 
-	ServerAddr.sin_family = AF_INET;
-	ServerAddr.sin_port = htons(port);//port é a porta de comunicação
-	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);//IPaddr é o endereço IP que seria passado por linha de comando
 
 	// Estabelece a conexão com o servidor
 	statusSocket = connect(s, (SOCKADDR*)&ServerAddr, sizeof(ServerAddr));
@@ -655,7 +659,7 @@ DWORD WINAPI EnviaMensagem(LPVOID index) {
 }
 
 DWORD WINAPI RecebeMensagem(LPVOID index) {
-	do {
+	/*do {
 		//statusSocket = recv(s, buf, TAMBUF, 0);
 		if (statusSocket > 0) {
 			//strncpy_s(msg, TAMBUF + 1, buf, statusSocket);
@@ -670,8 +674,12 @@ DWORD WINAPI RecebeMensagem(LPVOID index) {
 	//Precisamos ver como vai ser pra identificar uqal mensagem ta chegando -> apos o número sequencial (tamanho de um inteiro) temos um S
 	//Em seguida o tipo da mensagem, ai podemos direcionar de acordo com o tratamento . 
 
-	_endthreadex((DWORD)index);
+	_endthreadex((DWORD)index);*/
 	return(0);
+}
+
+void EnviaSocket(char* m, int tipo) {
+
 }
 
 int CheckSocketError(int status, HANDLE hOut) {//modificar e testar se vale a pena utilizar essa função 
@@ -699,6 +707,6 @@ int CheckSocketError(int status, HANDLE hOut) {//modificar e testar se vale a pe
 		printf("Conexao com cliente TCP encerrada prematuramente! status = %d\n\n", status);
 		return(-1); // acarreta reinício da espera de mensagens no programa principal
 	}
-	else return(0);*/
+	else */return(0);
 }
 
